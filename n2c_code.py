@@ -33,10 +33,10 @@ simple2 = sh_lldp_dict2['ins_api']['outputs']['output']['body']['TABLE_nbor']['R
 
 '''parsing to JSON FORMAT'''
 
-d = { "nxos-spine1":[{'neighbor_interface':(simple1[i].values()[2]) , "local_interface":(simple1[i].values()[6]) , "neighbor": (simple1[i].values()[1]) } for i in (range(count_cisco_neighbor_1))],
-"nxos-spine2":[{'neighbor_interface':(simple2[i].values()[2]) , "local_interface":(simple2[i].values()[6]) , "neighbor": (simple2[i].values()[1]) } for i in (range(count_cisco_neighbor_2))],
-"eos-spine1":[{'neighbor_interface':(eos1_lldp[0].values()[1].values()[4][i].values()[1]) , "local_interface":(eos1_lldp[0].values()[1].values()[4][i].values()[2]) , "neighbor": (eos1_lldp[0].values()[1].values()[4][i].values()[0]) } for i in (range(list_size1))],
-"eos-spine2":[{'neighbor_interface':(eos2_lldp[0].values()[1].values()[4][i].values()[1]) , "local_interface":(eos2_lldp[0].values()[1].values()[4][i].values()[2]) , "neighbor": (eos2_lldp[0].values()[1].values()[4][i].values()[0]) } for i in (range(list_size2))]}
+d = { "nxos-spine1":[{'neighbor_interface':(simple1[i].values()[2]) , "local_interface":(simple1[i].values()[6]) , "neighbor": (simple1[i].values()[1]) } for i in (xrange(count_cisco_neighbor_1))],
+"nxos-spine2":[{'neighbor_interface':(simple2[i].values()[2]) , "local_interface":(simple2[i].values()[6]) , "neighbor": (simple2[i].values()[1]) } for i in (xrange(count_cisco_neighbor_2))],
+"eos-spine1":[{'neighbor_interface':(eos1_lldp[0].values()[1].values()[4][i].values()[1]) , "local_interface":(eos1_lldp[0].values()[1].values()[4][i].values()[2]) , "neighbor": (eos1_lldp[0].values()[1].values()[4][i].values()[0]) } for i in (xrange(list_size1))],
+"eos-spine2":[{'neighbor_interface':(eos2_lldp[0].values()[1].values()[4][i].values()[1]) , "local_interface":(eos2_lldp[0].values()[1].values()[4][i].values()[2]) , "neighbor": (eos2_lldp[0].values()[1].values()[4][i].values()[0]) } for i in (xrange(list_size2))]}
 
 j = json.dumps(d, indent=4)
 f = open("n2c_output.json","wb+")
