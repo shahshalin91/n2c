@@ -164,7 +164,7 @@
         {
             "neighbor_interface": "1", 
             "local_interface": "Management1", 
-            "neighbor": "vmx1"
+            "neighbor": "vmx3"
         }
     ]
 }
