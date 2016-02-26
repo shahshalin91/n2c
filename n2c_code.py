@@ -1,44 +1,75 @@
 import json
-import xmltodict
-import os
-import pyeapi							#import arista eapi module
-from pycsco.nxos.device import Device   #import cisco nexus module
+from pycsco.nxos.device import Device as CISCO
+from pyeapi import connect_to as ARISTA
 
-pyeapi.load_config("~/.pyeapi.conf")	#load config ---- saved in config file (contains host name,ipaddr,password,mode)
+def get_arista_neighbors(device):
+    output = device.enable('show lldp neighbors')
+    KEY_MAP = dict(neighborDevice='neighbor', neighborPort='neighbor_interface', port='local_interface')
+    device_neighbors = output[0]['result']['lldpNeighbors']
+    neighbors_list = []
+    for neighbor in device_neighbors:
+        temp = {}
+        for vendor_key, vendor_value in neighbor.iteritems():
+            normalized_key = KEY_MAP.get(vendor_key)
+            if normalized_key:
+                temp[normalized_key] = str(vendor_value)
+        neighbors_list.append(temp)
+    return neighbors_list
 
-eos1 = pyeapi.connect_to("eos-spine1")	#connect to eos-spine1 device
-eos2 = pyeapi.connect_to("eos-spine2")  #connect to eos-spine2 device
+def get_cisco_neighbors(device):
+    cisco_dev = device.show('show lldp neighbors')
+    output = xmltodict.parse(cisco_dev[1])
+    KEY_MAP = dict(neighborDevice='chassis_id', neighborPort='port_id', port='l_port_id')
+    device_neighbors = output['ins_api']['outputs']['output']['body']['TABLE_nbor']['ROW_nbor']
+    neighbors_list = []
+    for neighbor in device_neighbors:
+        temp = {}
+        for vendor_key, vendor_value in neighbor.iteritems():
+            normalized_key = KEY_MAP.get(vendor_key)
+            if normalized_key:
+                temp[normalized_key] = str(vendor_value)
+        neighbors_list.append(temp)
+    return neighbors_list
 
+def load_cisco_devices():
 
-i = 0			
-eos1_lldp = (eos1.enable("show lldp neighbors",encoding="json"))	#command to find neighboring devices of arista devices
-eos2_lldp = (eos2.enable("show lldp neighbors",encoding="json"))	#command to find neighboring devices of arista devices
+#CREATE a file having 4 parameters  devicename,ip,username,password per line  separated by comma Eg nxos-spine1,85.190.182.51,ntc,ntc123
 
-list_size1 = len(eos1_lldp[0].values()[0].values()[4])				#gives the number of neighbor for eos1
-list_size2 = len(eos1_lldp[0].values()[0].values()[4])				#gives the number of neighbor for eos2
+    read_cisco = open("cisco_nxos_dev.txt","rb+")
+    file_lines = read_cisco.readlines()
+    cisco_devices = []
+    cisco_details = []
+    for line in (file_lines):
+        cisco_details = line.split(",")
+        cisco_devices.append(cisco_details[0])
+        CISCO(ip=str(cisco_details[1]),username=str(cisco_details[2]),password=str(cisco_details[3].rstrip("\n")))
+    return cisco_devices
 
-csco1 = Device(ip="85.190.182.51",username="ntc",password="ntc123")	#loading cisco nexus device1 with ip,username, password
-csco2 = Device(ip="31.220.70.5",username="ntc",password="ntc123")	#loading cisco nexus device2 with ip,username, password
+def load_arista_devices():
 
-get_sh_lldp1 = csco1.show('show lldp neighbors')					# lists the lldp neighbors for cisco device
-get_sh_lldp2 = csco2.show('show lldp neighbors')					# lists the lldp neighbors for cisco device
+#loads the devices from the config file
 
-sh_lldp_dict1 = xmltodict.parse(get_sh_lldp1[1])					
-sh_lldp_dict2 = xmltodict.parse(get_sh_lldp2[1])					
+    read_arista = open(".pyeapi.conf","rb+")
+    file_lines = read_arista.readlines()
+    arista_devices = []
+    for line in file_lines:
+        if line.startswith("[connection"):
+            node = line.split(":")
+            arista_devices.append(node[1].rstrip("]\n"))
+    read_arista.close()
+	
+    return arista_devices
 
-count_cisco_neighbor_1 = len(sh_lldp_dict1['ins_api']['outputs']['output']['body']['TABLE_nbor']['ROW_nbor'])		#find the count of cisco neighbors for iteration
-simple1 = sh_lldp_dict1['ins_api']['outputs']['output']['body']['TABLE_nbor']['ROW_nbor']							#finding the neighbors from the output
-count_cisco_neighbor_2 = len(sh_lldp_dict2['ins_api']['outputs']['output']['body']['TABLE_nbor']['ROW_nbor'])		#find the count of cisco neighbors for iteration
-simple2 = sh_lldp_dict2['ins_api']['outputs']['output']['body']['TABLE_nbor']['ROW_nbor']							#finding the neighbors from the output
-
-'''parsing to JSON FORMAT'''
-
-d = { "nxos-spine1":[{'neighbor_interface':(simple1[i].values()[2]) , "local_interface":(simple1[i].values()[6]) , "neighbor": (simple1[i].values()[1]) } for i in (xrange(count_cisco_neighbor_1))],
-"nxos-spine2":[{'neighbor_interface':(simple2[i].values()[2]) , "local_interface":(simple2[i].values()[6]) , "neighbor": (simple2[i].values()[1]) } for i in (xrange(count_cisco_neighbor_2))],
-"eos-spine1":[{'neighbor_interface':(eos1_lldp[0].values()[1].values()[4][i].values()[1]) , "local_interface":(eos1_lldp[0].values()[1].values()[4][i].values()[2]) , "neighbor": (eos1_lldp[0].values()[1].values()[4][i].values()[0]) } for i in (xrange(list_size1))],
-"eos-spine2":[{'neighbor_interface':(eos2_lldp[0].values()[1].values()[4][i].values()[1]) , "local_interface":(eos2_lldp[0].values()[1].values()[4][i].values()[2]) , "neighbor": (eos2_lldp[0].values()[1].values()[4][i].values()[0]) } for i in (xrange(list_size2))]}
-
-j = json.dumps(d, indent=4)
-f = open("n2c_output.json","wb+")
-print >> f,j
-f.close()
+	
+def main():
+    neighbors = {}
+    cisco_devices = load_cisco_devices()
+    arista_devices = load_arista_devices()
+    for dev in arista_devices:
+        node = ARISTA(dev)
+        neighbors[dev] = get_arista_neighbors(node)
+    for dev in cisco_devices:
+        neighbors[dev] = get_arista_neighbors(node)
+    print json.dumps(neighbors, indent=4)
+if __name__ =="__main__":
+    main()
