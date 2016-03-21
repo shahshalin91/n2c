@@ -69,7 +69,7 @@ def main():
         node = ARISTA(dev)
         neighbors[dev] = get_arista_neighbors(node)
     for dev in cisco_devices:
-        neighbors[dev] = get_arista_neighbors(node)
+        neighbors[dev] = get_cisco_neighbors(node)
     print json.dumps(neighbors, indent=4)
 if __name__ =="__main__":
     main()
